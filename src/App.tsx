@@ -1,15 +1,24 @@
+import { useEffect } from 'react';
+
 import { useCycleStore } from '@/stores/cycleStore';
+import { useTimerStore } from '@/stores/timerStore';
 
 import { DndProvider } from '@/components/DndProvider';
 import { Timer } from '@/components/Timer';
 import { PhaseBar } from '@/components/PhaseBar';
-import { Sidebar } from '@/components/Sidebar';
 import { PlanPhase } from '@/components/plan';
 import { ExecutePhase } from '@/components/execute';
 import { ReflectPhase } from '@/components/reflect';
 
 const App = () => {
   const { cycle } = useCycleStore();
+  const { start, isRunning } = useTimerStore();
+
+  useEffect(() => {
+    if (!isRunning) {
+      start();
+    }
+  }, []);
 
   const renderPhase = () => {
     switch (cycle.phase) {
@@ -34,17 +43,9 @@ const App = () => {
         </header>
 
         {/* Main Content */}
-        <div className="flex h-[calc(100vh-140px)]">
-          {/* Left: Main Content */}
-          <main className="flex-1 p-6 overflow-auto">
-            {renderPhase()}
-          </main>
-
-          {/* Right: Sidebar */}
-          <aside className="w-80">
-            <Sidebar />
-          </aside>
-        </div>
+        <main className="max-w-2xl mx-auto p-6 overflow-auto h-[calc(100vh-140px)]">
+          {renderPhase()}
+        </main>
       </div>
     </DndProvider>
   );

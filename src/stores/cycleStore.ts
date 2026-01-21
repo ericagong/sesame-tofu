@@ -17,6 +17,8 @@ type CycleStore = {
   addTry: (tryItem: LeverageBlock) => void;
   removeKeep: (id: string) => void;
   removeTry: (id: string) => void;
+  toggleKeepStatus: (id: string) => void;
+  toggleTryStatus: (id: string) => void;
   updateKeepTiming: (id: string, timing: 'before' | 'during' | 'after') => void;
   updateTryTiming: (id: string, timing: 'before' | 'during' | 'after') => void;
   setProbability: (probability: number) => void;
@@ -103,6 +105,42 @@ export const useCycleStore = create<CycleStore>((set) => ({
       cycle: {
         ...state.cycle,
         tries: state.cycle.tries.filter((t) => t.id !== id),
+      },
+    })),
+
+  toggleKeepStatus: (id) =>
+    set((state) => ({
+      cycle: {
+        ...state.cycle,
+        keeps: state.cycle.keeps.map((k) =>
+          k.id === id
+            ? {
+                ...k,
+                block: {
+                  ...k.block,
+                  status: k.block.status === 'active' ? 'deleted' : 'active',
+                },
+              }
+            : k
+        ),
+      },
+    })),
+
+  toggleTryStatus: (id) =>
+    set((state) => ({
+      cycle: {
+        ...state.cycle,
+        tries: state.cycle.tries.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                block: {
+                  ...t.block,
+                  status: t.block.status === 'active' ? 'deleted' : 'active',
+                },
+              }
+            : t
+        ),
       },
     })),
 

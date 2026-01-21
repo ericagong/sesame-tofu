@@ -22,7 +22,7 @@ export type LeverageBlock = {
 export type Phase = 'plan' | 'execute' | 'reflect';
 
 // Plan Step 타입
-export type PlanStep = 1 | 2 | 3 | 4;
+export type PlanStep = 1 | 2 | 3;
 
 // CycleState - 사이클 상태
 export type CycleState = {

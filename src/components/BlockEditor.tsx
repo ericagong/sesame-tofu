@@ -16,6 +16,7 @@ type BlockEditorProps = {
   maxDepth?: 0 | 1;
   showOrder?: boolean;
   droppableId: DroppableId;
+  readonly?: boolean;
 };
 
 export const BlockEditor = ({
@@ -25,14 +26,16 @@ export const BlockEditor = ({
   maxDepth = 1,
   showOrder = false,
   droppableId,
+  readonly = false,
 }: BlockEditorProps) => {
+  const noopChange = () => {};
   const {
     setInputRef,
     updateBlock,
     toggleStatus,
     handleKeyDown,
     addBlock,
-  } = useBlockEditor({ blocks, onChange, maxDepth });
+  } = useBlockEditor({ blocks, onChange: readonly ? noopChange : onChange, maxDepth });
 
   const { setNodeRef, isOver } = useDroppable({
     id: droppableId,
@@ -54,8 +57,8 @@ export const BlockEditor = ({
         {(() => {
           let depth0Index = 0;
           return blocks.map((block) => {
-            // active인 depth 0 블록만 순서 번호 부여
-            const order = showOrder && block.depth === 0 && block.status === 'active'
+            // depth 0 블록에 순서 번호 부여 (완료 여부 관계없이)
+            const order = showOrder && block.depth === 0
               ? ++depth0Index
               : undefined;
             return (
@@ -64,20 +67,22 @@ export const BlockEditor = ({
                 block={block}
                 blocks={blocks}
                 order={order}
+                showOrder={showOrder}
                 setInputRef={setInputRef}
-                onUpdate={updateBlock}
-                onToggle={toggleStatus}
-                onKeyDown={handleKeyDown}
+                onUpdate={readonly ? undefined : updateBlock}
+                onToggle={readonly ? undefined : toggleStatus}
+                onKeyDown={readonly ? undefined : handleKeyDown}
+                readonly={readonly}
               />
             );
           });
         })()}
       </SortableContext>
 
-      {blocks.length === 0 && (
+      {blocks.length === 0 && !readonly && (
         <button
           onClick={() => addBlock(0)}
-          className="w-full text-left px-2 py-1 text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full text-left px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {placeholder}
         </button>

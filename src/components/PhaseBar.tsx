@@ -20,8 +20,8 @@ export const PhaseBar = () => {
   const isPhaseCompleted = (phase: Phase): boolean => {
     switch (phase) {
       case 'plan':
-        // Plan 완료: 목표 시각화까지 완료 (planStep 4 + 확률 80% 이상)
-        return cycle.planStep === 4 && cycle.probability >= 80;
+        // Plan 완료: 목표 점검까지 완료 (planStep 3 + 확률 80% 이상)
+        return cycle.planStep === 3 && cycle.probability >= 80;
       case 'execute':
         // Execute 완료: 언제든 Reflect로 이동 가능
         return true;

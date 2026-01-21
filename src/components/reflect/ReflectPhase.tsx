@@ -1,17 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Plus } from 'lucide-react';
 
 import { useCycleStore } from '@/stores/cycleStore';
 import { useLeverageStore } from '@/stores/leverageStore';
-import { Progress } from '@/components/ui/progress';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useTimerStore } from '@/stores/timerStore';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -20,35 +13,40 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { BlockEditor } from '@/components/BlockEditor';
-import { generateId } from '@/utils';
+import { LeverageSectionedEditor } from '@/components/LeverageSectionedEditor';
 
-import type { LeverageBlock } from '@/types';
+import type { Block, LeverageBlock } from '@/types';
 
 export const ReflectPhase = () => {
   const {
     cycle,
     setMemos,
+    setBacklog,
     setKeeps,
     setTries,
     addKeep,
     addTry,
+    removeKeep,
+    removeTry,
+    toggleKeepStatus,
+    toggleTryStatus,
     updateKeepTiming,
     updateTryTiming,
     resetCycle,
+    setPhase,
   } = useCycleStore();
   const { add } = useLeverageStore();
+  const { start: startTimer, pause: pauseTimer, reset: resetTimer } = useTimerStore();
 
   const [showRestDialog, setShowRestDialog] = useState(false);
   const [isResting, setIsResting] = useState(false);
   const [restSeconds, setRestSeconds] = useState(0);
   const [restDuration, setRestDuration] = useState<10 | 20 | null>(null);
 
-  // 완료율 계산
-  const totalTasks = cycle.tasks.filter((t) => t.depth === 0).length;
-  const completedTasks = cycle.tasks.filter(
-    (t) => t.depth === 0 && t.status === 'deleted'
-  ).length;
-  const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  // 완료율 계산 (depth 0 + depth 1)
+  const allCompletedCount = cycle.tasks.filter((t) => t.status === 'deleted').length;
+  const allTotalCount = cycle.tasks.length;
+  const completionRate = allTotalCount > 0 ? (allCompletedCount / allTotalCount) * 100 : 0;
 
   // 분류되지 않은 메모
   const unclassifiedMemos = cycle.memos.filter((m) => m.status === 'active');
@@ -73,40 +71,14 @@ export const ReflectPhase = () => {
 
   const isRestComplete = isResting && restSeconds <= 0;
 
-  const handleAddKeep = () => {
-    const newLeverageBlock: LeverageBlock = {
-      id: generateId(),
-      block: {
-        id: generateId(),
-        content: '',
-        depth: 0,
-        status: 'active',
-      },
-      timing: 'before',
-      source: 'keep',
-      status: 'active',
-      createdAt: new Date(),
-    };
-    addKeep(newLeverageBlock);
-    add(newLeverageBlock);
+  const handleAddKeep = (item: LeverageBlock) => {
+    addKeep(item);
+    add(item);
   };
 
-  const handleAddTry = () => {
-    const newLeverageBlock: LeverageBlock = {
-      id: generateId(),
-      block: {
-        id: generateId(),
-        content: '',
-        depth: 0,
-        status: 'active',
-      },
-      timing: 'before',
-      source: 'try',
-      status: 'active',
-      createdAt: new Date(),
-    };
-    addTry(newLeverageBlock);
-    add(newLeverageBlock);
+  const handleAddTry = (item: LeverageBlock) => {
+    addTry(item);
+    add(item);
   };
 
   const handleKeepContentChange = (id: string, content: string) => {
@@ -135,87 +107,167 @@ export const ReflectPhase = () => {
   };
 
   const handleRestStart = (duration: 10 | 20) => {
+    pauseTimer(); // Flow 타이머 정지
     setRestDuration(duration);
     setRestSeconds(duration * 60);
     setIsResting(true);
   };
 
   const handleNewCycle = () => {
+    resetTimer(); // Flow 타이머 리셋 (90분으로)
     resetCycle();
     setShowRestDialog(false);
     setIsResting(false);
   };
 
   const handleEndDay = () => {
+    resetTimer(); // Flow 타이머 리셋
     setShowRestDialog(false);
     setIsResting(false);
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-medium">회고</h2>
-        <p className="text-sm text-muted-foreground">
-          {cycle.goal?.content}
-        </p>
-      </div>
+      {/* 가이드 메시지 */}
+      <p className="text-xs text-muted-foreground">
+        작업 중 메모를 Next, Keep, Try로 분류하세요.
+      </p>
 
-      {/* 완료율 */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span>완료율</span>
-          <span>{Math.round(completionRate)}%</span>
-        </div>
-        <Progress value={completionRate} className="h-2" />
-      </div>
+      {/* 메인 카드 */}
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          {/* 목표 */}
+          <div className="space-y-2 opacity-50">
+            <span className="text-xs text-muted-foreground">목표</span>
+            <p className="text-xs">{cycle.goal?.content}</p>
+          </div>
 
-      {/* 분류할 메모 */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">📝 분류할 메모</h3>
-        <p className="text-xs text-muted-foreground">
-          메모를 Keep이나 Try로 드래그해서 분류하세요
-        </p>
-        <div className="border rounded-lg p-4 min-h-[60px]">
-          <BlockEditor
-            blocks={cycle.memos}
-            onChange={setMemos}
-            placeholder="메모 추가..."
-            maxDepth={0}
-            droppableId="memos"
-          />
-        </div>
-      </div>
+          {/* 과제 */}
+          <div className="space-y-2 opacity-50">
+            <span className="text-xs text-muted-foreground">과제</span>
+            <BlockEditor
+              blocks={cycle.tasks}
+              onChange={() => {}}
+              showOrder
+              droppableId="tasks"
+              readonly
+            />
+          </div>
+
+          {/* 점검 */}
+          <div className="space-y-3 opacity-50">
+            <span className="text-xs text-muted-foreground">점검</span>
+
+            {/* 실행가능성 */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">실행가능성</span>
+                <span className="text-xs font-bold text-muted-foreground">
+                  {cycle.probability}%
+                </span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gray-400 rounded-full"
+                  style={{ width: `${cycle.probability}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 실제수행률 */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">실제수행률</span>
+                <span className="text-xs font-bold text-foreground">
+                  {Math.round(completionRate)}%
+                </span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-foreground rounded-full"
+                  style={{ width: `${completionRate}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 작업 중 메모 */}
+          <div className="space-y-2">
+            <span className="text-xs text-muted-foreground">작업 중 메모</span>
+            <BlockEditor
+              blocks={cycle.memos}
+              onChange={setMemos}
+              placeholder="메모가 없습니다"
+              maxDepth={0}
+              droppableId="memos"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Next 영역 */}
+      <NextSection
+        backlog={cycle.backlog}
+        onChange={setBacklog}
+      />
 
       {/* Keep 영역 */}
-      <KeepTrySection
-        title="😊 Keep - 오늘 효과 있었던 것들"
-        droppableId="keeps"
-        items={cycle.keeps}
-        onAdd={handleAddKeep}
-        onContentChange={handleKeepContentChange}
-        onTimingChange={updateKeepTiming}
-      />
+      <Card className="bg-muted/50">
+        <CardContent className="p-4 space-y-2">
+          <span className="text-xs text-muted-foreground">Keep - 효과 있었던 것</span>
+          <LeverageSectionedEditor
+            items={cycle.keeps}
+            onAdd={handleAddKeep}
+            onContentChange={handleKeepContentChange}
+            onTimingChange={updateKeepTiming}
+            onToggle={toggleKeepStatus}
+            onRemove={removeKeep}
+            source="keep"
+            droppableIdPrefix="keeps"
+          />
+        </CardContent>
+      </Card>
 
       {/* Try 영역 */}
-      <KeepTrySection
-        title="🔄 Try - 다음에 시도해볼 것들"
-        droppableId="tries"
-        items={cycle.tries}
-        onAdd={handleAddTry}
-        onContentChange={handleTryContentChange}
-        onTimingChange={updateTryTiming}
-      />
+      <Card className="bg-muted/50">
+        <CardContent className="p-4 space-y-2">
+          <span className="text-xs text-muted-foreground">Try - 다음에 시도할 것</span>
+          <LeverageSectionedEditor
+            items={cycle.tries}
+            onAdd={handleAddTry}
+            onContentChange={handleTryContentChange}
+            onTimingChange={updateTryTiming}
+            onToggle={toggleTryStatus}
+            onRemove={removeTry}
+            source="try"
+            droppableIdPrefix="tries"
+          />
+        </CardContent>
+      </Card>
 
-      <button
-        onClick={handleRest}
-        disabled={!allMemosClassified}
-        className="px-6 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {allMemosClassified ? '휴식하기' : '메모를 모두 분류해주세요'}
-      </button>
+      {/* 이전/다음 버튼 */}
+      <div className="flex justify-between">
+        <button
+          onClick={() => setPhase('execute')}
+          className="text-sm hover:underline"
+        >
+          이전
+        </button>
+        <button
+          onClick={handleRest}
+          disabled={!allMemosClassified}
+          className="text-sm hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+        >
+          {allMemosClassified ? '다음' : '메모를 모두 분류해주세요'}
+        </button>
+      </div>
 
       {/* 휴식 다이얼로그 */}
       <Dialog open={showRestDialog} onOpenChange={(open) => {
+        if (!open && isResting && restSeconds > 0) {
+          // 휴식 중 모달이 닫히면 Flow 타이머 재개
+          startTimer();
+        }
         setShowRestDialog(open);
         if (!open) setIsResting(false);
       }}>
@@ -273,7 +325,10 @@ export const ReflectPhase = () => {
                 <iframe
                   width="100%"
                   height="100%"
-                  src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
+                  src={restDuration === 20
+                    ? "https://www.youtube.com/embed/7jTO4GqHbog?autoplay=1"
+                    : "https://www.youtube.com/embed/AT7hIY1vNy0?autoplay=1"
+                  }
                   title="휴식 영상"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -305,78 +360,31 @@ export const ReflectPhase = () => {
   );
 };
 
-// Keep/Try 섹션 컴포넌트
-type KeepTrySectionProps = {
-  title: string;
-  droppableId: 'keeps' | 'tries';
-  items: LeverageBlock[];
-  onAdd: () => void;
-  onContentChange: (id: string, content: string) => void;
-  onTimingChange: (id: string, timing: 'before' | 'during' | 'after') => void;
+// Next 섹션 컴포넌트
+type NextSectionProps = {
+  backlog: Block[];
+  onChange: (blocks: Block[]) => void;
 };
 
-const KeepTrySection = ({
-  title,
-  droppableId,
-  items,
-  onAdd,
-  onContentChange,
-  onTimingChange,
-}: KeepTrySectionProps) => {
+const NextSection = ({ backlog, onChange }: NextSectionProps) => {
   const { setNodeRef, isOver } = useDroppable({
-    id: droppableId,
+    id: 'backlog',
   });
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <button
-          onClick={onAdd}
-          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-      <div
-        ref={setNodeRef}
-        className={`border rounded-lg p-4 min-h-[80px] space-y-2 transition-colors ${
-          isOver ? 'bg-accent/50 border-primary' : ''
-        }`}
-      >
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-2">
-            메모를 여기로 드래그하거나 + 버튼으로 추가하세요
-          </p>
-        ) : (
-          items.map((item) => (
-            <div key={item.id} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={item.block.content}
-                onChange={(e) => onContentChange(item.id, e.target.value)}
-                placeholder="내용을 입력하세요"
-                className="flex-1 bg-transparent outline-none text-sm border-b border-transparent focus:border-primary"
-              />
-              <Select
-                value={item.timing}
-                onValueChange={(v) =>
-                  onTimingChange(item.id, v as 'before' | 'during' | 'after')
-                }
-              >
-                <SelectTrigger className="w-[100px] h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="before">시작 전</SelectItem>
-                  <SelectItem value="during">작업 중</SelectItem>
-                  <SelectItem value="after">회고 시</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    <Card className={`bg-muted/50 transition-colors ${isOver ? 'ring-2 ring-primary' : ''}`}>
+      <CardContent className="p-4 space-y-2">
+        <span className="text-xs text-muted-foreground">Next - 다음에 할 일</span>
+        <div ref={setNodeRef} className="min-h-[40px]">
+          <BlockEditor
+            blocks={backlog}
+            onChange={onChange}
+            placeholder="메모를 여기로 드래그하세요"
+            maxDepth={0}
+            droppableId="backlog"
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 };
