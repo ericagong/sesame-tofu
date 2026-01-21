@@ -3,8 +3,15 @@ import { useCycleStore } from '@/stores/cycleStore';
 import { useLeverageStore } from '@/stores/leverageStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BlockEditor } from '@/components/BlockEditor';
+import { BlockEditor } from '@/components/editors';
 import { Slider } from '@/components/ui/slider';
+import {
+  GoalSection,
+  BacklogSection,
+  LeverageCheckList,
+} from '@/components/sections';
+import { VisualizationOverlay } from '@/components/dialogs';
+import { GuideMessage, PhaseNavigation, SectionLabel, DimmedSection } from '@/components/common';
 import { generateId } from '@/utils';
 import { cn } from '@/lib/utils';
 
@@ -57,10 +64,10 @@ export const PlanPhase = () => {
     }
   };
 
-  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGoalChange = (value: string) => {
     setGoal({
       id: cycle.goal?.id || generateId(),
-      content: e.target.value,
+      content: value,
       depth: 0,
       status: 'active',
     });
@@ -146,17 +153,6 @@ export const PlanPhase = () => {
     }
   };
 
-  // 시각화 진행 중일 때 - 카드 위에 타이머 오버레이
-  const renderVisualizationOverlay = () => {
-    return (
-      <div className="absolute inset-0 bg-background/60 flex items-center justify-center rounded-lg z-10">
-        <div className="w-20 h-20 rounded-full border-4 border-primary bg-background flex items-center justify-center shadow-lg">
-          <span className="text-3xl font-bold">{countdown}</span>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -176,54 +172,29 @@ export const PlanPhase = () => {
       </Tabs>
 
       {/* 현재 단계 가이드 메시지 */}
-      <p className="text-xs text-muted-foreground">{getGuideMessage()}</p>
+      <GuideMessage>{getGuideMessage()}</GuideMessage>
 
       {/* 다음에 할 일 - 목표 정의 단계 */}
-      {(cycle.planStep === 1 && cycle.backlog.length > 0) && (
-        <Card className="bg-muted/50">
-          <CardContent className="p-4 space-y-2">
-            <span className="text-xs text-muted-foreground">다음에 할 일</span>
-            <BlockEditor
-              blocks={cycle.backlog}
-              onChange={setBacklog}
-              placeholder="다음에 할 일..."
-              droppableId="backlog"
-            />
-          </CardContent>
-        </Card>
+      {cycle.planStep === 1 && cycle.backlog.length > 0 && (
+        <BacklogSection backlog={cycle.backlog} onChange={setBacklog} />
       )}
 
       <Card className="relative">
-        {isVisualizing && renderVisualizationOverlay()}
+        {isVisualizing && <VisualizationOverlay countdown={countdown} />}
         <CardContent className="p-6 space-y-6">
           {/* 목표 */}
-          <div
-            className={cn(
-              'space-y-2 transition-opacity',
-              cycle.planStep === 1 ? 'opacity-100' : 'opacity-50'
-            )}
-          >
-            <span className="text-xs text-muted-foreground">목표</span>
-            <input
-              type="text"
-              value={cycle.goal?.content || ''}
-              onChange={handleGoalChange}
-              onKeyDown={handleGoalKeyDown}
-              placeholder="목표가 완성된 상황을 한 문장으로 적어보세요."
-              className="w-full py-2 text-xs border-none outline-none focus:ring-0 bg-transparent"
-              disabled={cycle.planStep !== 1}
-              autoFocus={cycle.planStep === 1}
-            />
-          </div>
+          <GoalSection
+            goal={cycle.goal}
+            onChange={handleGoalChange}
+            onKeyDown={handleGoalKeyDown}
+            readonly={cycle.planStep !== 1}
+            dimmed={cycle.planStep !== 1}
+            autoFocus={cycle.planStep === 1}
+          />
 
           {/* 과제 */}
-          <div
-            className={cn(
-              'space-y-2 transition-opacity',
-              cycle.planStep >= 2 ? 'opacity-100' : 'opacity-30'
-            )}
-          >
-            <span className="text-xs text-muted-foreground">과제</span>
+          <DimmedSection dimmed={cycle.planStep < 2} className="space-y-2">
+            <SectionLabel>과제</SectionLabel>
             {cycle.planStep >= 2 ? (
               <BlockEditor
                 blocks={cycle.tasks}
@@ -234,22 +205,19 @@ export const PlanPhase = () => {
                 showOrder={cycle.planStep === 3}
               />
             ) : (
-              <p className="text-xs text-muted-foreground/50">목표를 먼저 정의하세요</p>
+              <p className="text-xs text-muted-foreground/50">
+                목표를 먼저 정의하세요
+              </p>
             )}
-          </div>
+          </DimmedSection>
 
           {/* 점검 */}
-          <div
-            className={cn(
-              'space-y-2 transition-opacity',
-              cycle.planStep === 3 ? 'opacity-100' : 'opacity-30'
-            )}
-          >
-            <span className="text-xs text-muted-foreground">점검</span>
+          <DimmedSection dimmed={cycle.planStep !== 3} className="space-y-2">
+            <SectionLabel>점검</SectionLabel>
             {cycle.planStep >= 3 ? (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">실행가능성</span>
+                  <SectionLabel>실행가능성</SectionLabel>
                   <div className="flex items-center gap-4">
                     <Slider
                       value={[cycle.probability]}
@@ -261,7 +229,9 @@ export const PlanPhase = () => {
                     <span
                       className={cn(
                         'w-14 text-right font-bold',
-                        cycle.probability >= 80 ? 'text-green-600' : 'text-orange-500'
+                        cycle.probability >= 80
+                          ? 'text-green-600'
+                          : 'text-orange-500'
                       )}
                     >
                       {cycle.probability}%
@@ -270,79 +240,48 @@ export const PlanPhase = () => {
                 </div>
                 {cycle.planStep === 3 && !isStep3Done && (
                   <p className="text-xs text-muted-foreground">
-                    빡빡해 보여요. 과제 중 일부를 다음 할 일로 옮겨 실행 가능성을 높여보세요.
+                    빡빡해 보여요. 과제 중 일부를 다음 할 일로 옮겨 실행 가능성을
+                    높여보세요.
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground/50">과제를 먼저 분할하세요</p>
+              <p className="text-xs text-muted-foreground/50">
+                과제를 먼저 분할하세요
+              </p>
             )}
-          </div>
-
+          </DimmedSection>
         </CardContent>
       </Card>
 
       {/* 다음에 할 일 - 목표 점검 단계 */}
       {cycle.planStep === 3 && (
-        <Card className="bg-muted/50">
-          <CardContent className="p-4 space-y-2">
-            <span className="text-xs text-muted-foreground">다음에 할 일</span>
-            <BlockEditor
-              blocks={cycle.backlog}
-              onChange={setBacklog}
-              placeholder="과제를 여기로 드래그하세요."
-              droppableId="backlog"
-            />
-          </CardContent>
-        </Card>
+        <BacklogSection
+          backlog={cycle.backlog}
+          onChange={setBacklog}
+          placeholder="과제를 여기로 드래그하세요."
+        />
       )}
 
       {/* 시작 전 체크 - 실행가능성 80% 이상일 때만 표시 */}
-      {cycle.planStep === 3 && isStep3Done && beforeLeverages.length > 0 && (
-        <Card className="bg-muted/50">
-          <CardContent className="p-4 space-y-2">
-            <span className="text-xs text-muted-foreground">시작 전 체크</span>
-            <div className="space-y-2">
-              {beforeLeverages.map((leverage) => (
-                <label key={leverage.id} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checkedIds.has(leverage.id)}
-                    onChange={() => toggleCheck(leverage.id)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-xs">{leverage.block.content}</span>
-                </label>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {cycle.planStep === 3 && isStep3Done && (
+        <LeverageCheckList
+          leverages={beforeLeverages}
+          label="시작 전 체크"
+          variant="checkbox"
+          checkedIds={checkedIds}
+          onToggle={toggleCheck}
+        />
       )}
 
       {/* 이전/다음 버튼 */}
       {!isVisualizing && (
-        <div className="flex justify-between">
-          {cycle.planStep > 1 ? (
-            <button onClick={handleBack} className="text-sm hover:underline">
-              이전
-            </button>
-          ) : (
-            <div />
-          )}
-          {cycle.planStep < 3 ? (
-            canGoNext() && (
-              <button onClick={handleNext} className="text-sm hover:underline">
-                다음
-              </button>
-            )
-          ) : (
-            canGoNext() && (
-              <button onClick={startVisualization} className="text-sm hover:underline">
-                다음
-              </button>
-            )
-          )}
-        </div>
+        <PhaseNavigation
+          onBack={handleBack}
+          onNext={cycle.planStep < 3 ? handleNext : startVisualization}
+          hideBack={cycle.planStep <= 1}
+          hideNext={!canGoNext()}
+        />
       )}
     </div>
   );

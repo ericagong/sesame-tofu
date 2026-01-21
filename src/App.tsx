@@ -3,12 +3,11 @@ import { useEffect } from 'react';
 import { useCycleStore } from '@/stores/cycleStore';
 import { useTimerStore } from '@/stores/timerStore';
 
-import { DndProvider } from '@/components/DndProvider';
-import { Timer } from '@/components/Timer';
-import { PhaseBar } from '@/components/PhaseBar';
-import { PlanPhase } from '@/components/plan';
-import { ExecutePhase } from '@/components/execute';
-import { ReflectPhase } from '@/components/reflect';
+import { DndProvider } from '@/providers';
+import { Timer, PhaseBar } from '@/components/layout';
+import { PlanPhase } from '@/phases/plan';
+import { ExecutePhase } from '@/phases/execute';
+import { ReflectPhase } from '@/phases/reflect';
 
 const App = () => {
   const { cycle } = useCycleStore();

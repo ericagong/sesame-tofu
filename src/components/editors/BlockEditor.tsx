@@ -6,6 +6,7 @@ import { useDroppable } from '@dnd-kit/core';
 
 import type { Block, DroppableId } from '@/types';
 import { useBlockEditor } from '@/hooks/useBlockEditor';
+import { DroppableContainer, AddItemButton } from '@/components/common';
 
 import { BlockItem } from './BlockItem';
 
@@ -43,11 +44,9 @@ export const BlockEditor = ({
 
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`space-y-1 min-h-[40px] rounded transition-colors ${
-        isOver ? 'bg-accent/50' : ''
-      }`}
+    <DroppableContainer
+      setNodeRef={setNodeRef}
+      isOver={isOver}
       data-droppable-id={droppableId}
     >
       <SortableContext
@@ -80,13 +79,8 @@ export const BlockEditor = ({
       </SortableContext>
 
       {blocks.length === 0 && !readonly && (
-        <button
-          onClick={() => addBlock(0)}
-          className="w-full text-left px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {placeholder}
-        </button>
+        <AddItemButton onClick={() => addBlock(0)}>{placeholder}</AddItemButton>
       )}
-    </div>
+    </DroppableContainer>
   );
 };

@@ -6,10 +6,16 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Square, CheckSquare } from 'lucide-react';
+import { Square, CheckSquare } from 'lucide-react';
 
 import { generateId } from '@/utils';
 import { cn } from '@/lib/utils';
+import {
+  DragHandle,
+  DroppableContainer,
+  AddItemButton,
+  SectionLabel,
+} from '@/components/common';
 
 import type { LeverageBlock } from '@/types';
 
@@ -175,12 +181,11 @@ const TimingDropZone = ({
 
   return (
     <div className="space-y-1">
-      <span className="text-[10px] text-muted-foreground/70">{section.label}</span>
-      <div
-        ref={setNodeRef}
-        className={`min-h-[32px] rounded transition-colors ${
-          isOver ? 'bg-accent/50' : ''
-        }`}
+      <SectionLabel size="small">{section.label}</SectionLabel>
+      <DroppableContainer
+        setNodeRef={setNodeRef}
+        isOver={isOver}
+        minHeight="small"
       >
         <SortableContext
           items={items.map((item) => item.id)}
@@ -199,14 +204,11 @@ const TimingDropZone = ({
         </SortableContext>
 
         {items.length === 0 && (
-          <button
-            onClick={() => onAddClick(section.timing)}
-            className="w-full text-left px-2 py-1 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          >
+          <AddItemButton onClick={() => onAddClick(section.timing)} variant="muted">
             + 추가
-          </button>
+          </AddItemButton>
         )}
-      </div>
+      </DroppableContainer>
     </div>
   );
 };
@@ -255,13 +257,7 @@ const LeverageBlockItem = ({
       )}
     >
       {/* 드래그 핸들 */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground transition-opacity"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
+      <DragHandle attributes={attributes} listeners={listeners} />
 
       {/* 체크박스 */}
       <button

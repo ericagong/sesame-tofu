@@ -1,10 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Square, CheckSquare } from 'lucide-react';
+import { Square, CheckSquare } from 'lucide-react';
 
 import type { Block } from '@/types';
 import { cn } from '@/lib/utils';
-import { useDndState } from './DndProvider';
+import { useDndState } from '@/providers';
+import { DragHandle } from '@/components/common';
 
 type BlockItemProps = {
   block: Block;
@@ -71,15 +72,7 @@ export const BlockItem = ({
         )}
       >
       {/* 드래그 핸들 - hover 시에만 보임 */}
-      {!readonly && (
-        <button
-          {...attributes}
-          {...listeners}
-          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground transition-opacity"
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-      )}
+      {!readonly && <DragHandle attributes={attributes} listeners={listeners} />}
 
       {/* readonly일 때 공간 유지 */}
       {readonly && <div className="w-5" />}
