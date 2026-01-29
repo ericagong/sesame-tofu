@@ -7,7 +7,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Square, CheckSquare } from 'lucide-react';
 
-import type { Block as BlockType } from '@/entities/pomodoro/model';
+import type { Block as BlockType } from '@/entities/block';
 import type { DroppableId } from '@/app/providers/DndProvider';
 import { cn } from '@/shared/lib/utils';
 import { useDndState } from '@/shared/lib/dnd-context';

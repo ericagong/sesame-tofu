@@ -1,4 +1,4 @@
-import type { Block } from '@/entities/pomodoro/model';
+import type { Block } from '@/entities/block';
 import { SectionLabel, DimmedSection } from '@/shared/primitives';
 
 type GoalSectionProps = {

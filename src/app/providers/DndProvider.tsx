@@ -13,8 +13,11 @@ import type { DragEndEvent, DragStartEvent, DragOverEvent, DragMoveEvent } from 
 
 import { DndStateContext } from '@/shared/lib/dnd-context';
 import { generateId } from '@/shared/lib/utils';
-import { usePomodoroStore, type Block, type Insight } from '@/entities/pomodoro';
-import { useLeverageStore } from '@/entities/leverage';
+import type { Block } from '@/entities/block';
+import type { Insight } from '@/entities/insight';
+import { getBlockWithChildren, cloneBlocks } from '@/entities/block';
+import { useFlowStore } from '@/features/flow';
+import { useInsightsStore } from '@/features/insights';
 
 // 드롭 영역 ID
 export type DroppableId = 'goal' | 'tasks' | 'backlog' | 'memos' | 'insights';
@@ -23,39 +26,16 @@ type DndProviderProps = {
   children: React.ReactNode;
 };
 
-// 상위 블록과 하위 블록들을 함께 가져오기
-const getBlockWithChildren = (blocks: Block[], index: number): Block[] => {
-  const block = blocks[index];
-  if (block.depth !== 0) return [block];
-
-  const result: Block[] = [block];
-  for (let i = index + 1; i < blocks.length; i++) {
-    if (blocks[i].depth === 0) break;
-    result.push(blocks[i]);
-  }
-  return result;
-};
-
-// 블록들을 새 ID로 복제
-const cloneBlocksWithNewIds = (blocks: Block[]): Block[] => {
-  const parentIdMap = new Map<string, string>();
-
-  return blocks.map((block) => {
-    const newId = generateId();
-    if (block.depth === 0) {
-      parentIdMap.set(block.id, newId);
-    }
-    return {
-      ...block,
-      id: newId,
-      parentId: block.parentId ? parentIdMap.get(block.parentId) : undefined,
-    };
-  });
-};
-
 export const DndProvider = ({ children }: DndProviderProps) => {
-  const { pomodoro, setTasks, setBacklog, setMemos, setInsights } = usePomodoroStore();
-  const { add } = useLeverageStore();
+  const tasks = useFlowStore((s) => s.tasks);
+  const backlog = useFlowStore((s) => s.backlog);
+  const memos = useFlowStore((s) => s.memos);
+  const insights = useFlowStore((s) => s.insights);
+  const setTasks = useFlowStore((s) => s.setTasks);
+  const setBacklog = useFlowStore((s) => s.setBacklog);
+  const setMemos = useFlowStore((s) => s.setMemos);
+  const setInsights = useFlowStore((s) => s.setInsights);
+  const { add } = useInsightsStore();
   const [activeBlocks, setActiveBlocks] = useState<Block[]>([]);
   const [overId, setOverId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -75,11 +55,11 @@ export const DndProvider = ({ children }: DndProviderProps) => {
   const getBlocksAndSetter = (droppableId: DroppableId) => {
     switch (droppableId) {
       case 'tasks':
-        return { blocks: pomodoro.tasks, setter: setTasks };
+        return { blocks: tasks, setter: setTasks };
       case 'backlog':
-        return { blocks: pomodoro.backlog, setter: setBacklog };
+        return { blocks: backlog, setter: setBacklog };
       case 'memos':
-        return { blocks: pomodoro.memos, setter: setMemos };
+        return { blocks: memos, setter: setMemos };
       default:
         return null;
     }
@@ -102,9 +82,9 @@ export const DndProvider = ({ children }: DndProviderProps) => {
 
   // Insight 소스 찾기
   const findInsightSource = (itemId: string): { item: Insight; index: number } | null => {
-    const index = pomodoro.insights.findIndex((i) => i.id === itemId);
+    const index = insights.findIndex((i) => i.id === itemId);
     if (index !== -1) {
-      return { item: pomodoro.insights[index], index };
+      return { item: insights[index], index };
     }
     return null;
   };
@@ -197,7 +177,7 @@ export const DndProvider = ({ children }: DndProviderProps) => {
       // 다른 Insight 위로 드롭 (재정렬)
       const insightOver = findInsightSource(overId);
       if (insightOver) {
-        const items = [...pomodoro.insights];
+        const items = [...insights];
         const oldIndex = insightSource.index;
         const newIndex = insightOver.index;
 
@@ -211,7 +191,7 @@ export const DndProvider = ({ children }: DndProviderProps) => {
       // 섹션 영역으로 드롭 (timing 변경)
       const sectionDrop = parseSectionDropId(overId);
       if (sectionDrop) {
-        const items = [...pomodoro.insights];
+        const items = [...insights];
         // timing 업데이트
         items[insightSource.index] = {
           ...items[insightSource.index],
@@ -232,7 +212,7 @@ export const DndProvider = ({ children }: DndProviderProps) => {
 
         if (targetInfo && (actualTarget === 'backlog' || actualTarget === 'memos')) {
           // insights에서 제거
-          const insightItems = [...pomodoro.insights];
+          const insightItems = [...insights];
           const [removedItem] = insightItems.splice(insightSource.index, 1);
           setInsights(insightItems);
 
@@ -293,7 +273,7 @@ export const DndProvider = ({ children }: DndProviderProps) => {
         .filter((b) => b.depth === 0) // depth 0만 insight로
         .map((b) => blockToInsight(b, sectionDrop.timing));
 
-      setInsights([...pomodoro.insights, ...newInsights]);
+      setInsights([...insights, ...newInsights]);
       newInsights.forEach((insight) => add(insight));
       return;
     }
@@ -328,7 +308,7 @@ export const DndProvider = ({ children }: DndProviderProps) => {
         sourceData.setter(newSourceBlocks);
 
         // 타겟에 추가 (새 ID로)
-        const newBlocks = cloneBlocksWithNewIds(adjustedBlocks);
+        const newBlocks = cloneBlocks(adjustedBlocks);
 
         if (overSource) {
           // 특정 블록 위치에 삽입

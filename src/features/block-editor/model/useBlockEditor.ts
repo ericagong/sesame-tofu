@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 
-import type { Block } from '@/entities/pomodoro/model';
-import { generateId } from '@/shared/lib/utils';
+import type { Block } from '@/entities/block';
+import { generateId } from '@/entities/block';
 
 type UseBlockEditorProps = {
   blocks: Block[];

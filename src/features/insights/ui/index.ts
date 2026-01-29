@@ -1,0 +1,1 @@
+export { InsightSectionedEditor } from './InsightSectionedEditor';

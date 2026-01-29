@@ -1,4 +1,4 @@
-import type { Block } from '@/entities/pomodoro/model';
+import type { Block } from '@/entities/block';
 import { SectionLabel, ProgressBar } from '@/shared/primitives';
 
 type InspectionSectionProps = {

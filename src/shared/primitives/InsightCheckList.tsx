@@ -1,6 +1,6 @@
 import { Badge } from '@/shared/core/badge';
 import { Card } from '@/shared/primitives';
-import type { Insight } from '@/entities/pomodoro/model';
+import type { Insight } from '@/entities/insight';
 
 type InsightCheckListProps = {
   insights: Insight[];

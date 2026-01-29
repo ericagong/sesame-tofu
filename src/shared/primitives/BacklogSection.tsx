@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { Card } from '@/shared/primitives';
 import { Block } from '@/features/block-editor';
-import type { Block as BlockType } from '@/entities/pomodoro/model';
+import type { Block as BlockType } from '@/entities/block';
 
 type BacklogSectionProps = {
   backlog: BlockType[];
